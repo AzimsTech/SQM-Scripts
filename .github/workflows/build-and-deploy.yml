@@ -1,0 +1,65 @@
+name: Build SQM Scripts
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Step 1: Make a local clone of the git repository
+    - name: Clone sqm-scripts
+      run: git clone https://github.com/tohojo/sqm-scripts
+    
+    # Step 2: Change into the new directory
+    # Step 3: Make sure the source is updated
+    - name: Update source
+      run: |
+        cd ./sqm-scripts
+        git pull
+    
+    # Step 4: Create the scripts for your platform
+    - name: Build OpenWrt
+      run: |
+        cd ./sqm-scripts
+        make install PLATFORM=openwrt DESTDIR=./current_sqm_base
+    
+    - name: Build Linux
+      run: |
+        cd ./sqm-scripts
+        make install PLATFORM=linux DESTDIR=./current_sqm_base_linux
+    
+    # Package for download
+    - name: Package OpenWrt build
+      run: tar -czf sqm-openwrt.tar.gz -C sqm-scripts/current_sqm_base .
+    
+    - name: Package Linux build
+      run: tar -czf sqm-linux.tar.gz -C sqm-scripts/current_sqm_base_linux .
+    
+    # Upload artifacts
+    - name: Upload OpenWrt
+      uses: actions/upload-artifact@v4
+      with:
+        name: sqm-openwrt
+        path: sqm-openwrt.tar.gz
+    
+    - name: Upload Linux
+      uses: actions/upload-artifact@v4
+      with:
+        name: sqm-linux
+        path: sqm-linux.tar.gz
+
+    # Deploy release
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        files: |
+          sqm-openwrt.tar.gz
+          sqm-linux.tar.gz
